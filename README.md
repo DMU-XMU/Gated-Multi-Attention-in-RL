@@ -37,7 +37,7 @@ Take the Seaquest environment in Atari 2600 games as an example.Our agent receiv
 regions of evidence for the current action in each frame via heat. The heat maps can clearly show he current ehavior
 and ffensive strategy of the aget.
 
-![image](https://github.com/DMU-XMU/Gated-Multi-Attention-in-RL/blob/main/GMAQN/Visualize/heat_maps.png)
+![image](https://github.com/DMU-XMU/Gated-Multi-Attention-in-RL/blob/main/Visualize/heat_maps.png)
 
 In the heat map, we also show how GMAQN can be trained to supplement oxygen after the agent is aware that oxygen is insufficient. In more detail, in the first picture, the submarine is destroying the enemy, while in the second, third, and fourth pictures,  the agent observed oxygen is depleting. The fifth and sixth pictures show that the submarine floats to the surface to supplement oxygen. In the seventh picture, the submarine starts to destroy the enemy after replenishing oxygen.
 
