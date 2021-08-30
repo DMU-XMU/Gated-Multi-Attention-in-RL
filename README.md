@@ -6,9 +6,11 @@ This implementation contains:
     - vanilla DQN model
 2. RS-DQN
     - DQN model with region-sensitive(RS) module
-3. ALSTM
+3. Local-DQN
+    - DQN model with local attention(a glimpse network) module
+4. ALSTM
     - Attention combined with LSTM based on DQN
-4. GMAQN
+5. GMAQN
     - Our work
     
 ## Dependencies
@@ -20,11 +22,11 @@ This implementation contains:
 To train on a local machine or in a local container, run the following command:
 To train GAMQN model for Seaquest:
 
-    $ python train.py --env=Seaquest-v4 --model=GMAQN
+    $ python train.py --env Seaquest-v4 --model GMAQN
     
 To train ALSTM model for Seaquest:
 
-    $ python train.py --env=Seaquest-v4 --model=ALSTM
+    $ python train.py --env Seaquest-v4 --model ALSTM
 
 # Grad-CAM visualization videos
 
