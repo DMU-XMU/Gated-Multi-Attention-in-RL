@@ -62,8 +62,8 @@ def get_output_folder(args, parent_dir, env_name, task_name):
     else:
         print('===== Folder exists; delete? %s'%parent_dir)
         os.system('rm -rf %s/' % (parent_dir))
-    os.makedirs(parent_dir+'/videos/')
-    os.makedirs(parent_dir+'/images/')
+    #os.makedirs(parent_dir+'/videos/')
+    #os.makedirs(parent_dir+'/images/')
     return parent_dir
 
 
@@ -80,9 +80,9 @@ def get_num_params():
 
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='Boxing-v4', help='Atari env name')
+    parser.add_argument('--env', default='Seaquest-v4', help='Atari env name')
     parser.add_argument('-o', '--output', default='./log/', help='Directory to save data to')
-    parser.add_argument('--seed', default=123, type=int, help='Random seed')#4674 123. 0.
+    parser.add_argument('--seed', default=0, type=int, help='Random seed')#4674 123. 0.
     parser.add_argument('--gamma', default=0.99, type=float, help='Discount factor')
     parser.add_argument('--batch_size', default=32, type=int, help='Minibatch size')
     parser.add_argument('--learning_rate_RMS', default=0.00025, type=float, help='Learning rate')
@@ -101,7 +101,7 @@ def main():
     parser.add_argument('--eval_freq', default=10000, type=int, help='The frequency with which the policy is evlauted')    
     parser.add_argument('--num_burn_in', default=50000, type=int, help='Number of steps to populate the replay memory before training starts')
     parser.add_argument('--load_network_path', default='', help='the path to the trained mode file')
-    parser.add_argument('--max_episode_length', default = 100000, type=int, help = 'max length of each episode')
+    parser.add_argument('--max_episode_length', default = 10000, type=int, help = 'max length of each episode')
     parser.add_argument('--num_episodes_at_test', default = 10, type=int, help='Number of episodes the agent plays at test')
     parser.add_argument('--ddqn', default=False, dest='ddqn', action='store_true', help='enable ddqn')
     parser.add_argument('--train', default=True, dest='train', action='store_true', help='Train mode')
@@ -116,15 +116,17 @@ def main():
     parser.add_argument('--selector', default=False, dest='selector', action='store_true', help='enable selector for spatial attention')
     parser.add_argument('--bidir', default=False, dest='bidir', action='store_true', help='enable two layer bidirectional lstm')
     parser.add_argument('--self_att', default=False, action='store_true', help='do not record video')
-    parser.add_argument('--model', default='GMAQN', help='choose the model {GMAQN,RS-DQN,Local-DQN,ALSTM,DQN}')
+    parser.add_argument('--model', default='GMAQN', help='choose the model {GMAQN,Local-DQN,RS-DQN,ALSTM,DQN}')
+    parser.add_argument('--noise', default='none', help='choose the noise {none,noise2,noise3}')
     parser.add_argument('--vis', default=False, action='store_true', help='do visulize')
+
     ### load model ###
     parser.add_argument('--restore', default=False, action='store_true', help='restore model')
-    parser.add_argument('--restore_path', default='./log/Seaquest-v4-model', action='store_true', help='restore path') #./log/Seaquest-v4-run10-/qnet1780.cptk
+    parser.add_argument('--restore_path', default='./log/Seaquest-v4-model', action='store_true', help='restore path')
     parser.add_argument('--load_network', default=False, action='store_true', help='load_network')
 
     args = parser.parse_args()
-    full_path = './data/'+args.model  +'_'+ args.env + '.txt' 
+    full_path = './data/'+args.model + '_'+args.noise+'_' + args.env + '.txt'
     file = open(full_path, 'w')
     print(file)
     if not args.restore:
