@@ -35,7 +35,7 @@ To train ALSTM model for Seaquest:
 
 Take the Seaquest environment in Atari 2600 games as an example.Our agent receives visual input as a stream of 210x160px RGB images (top).Grad-CAM can mark the
 regions of evidence for the current action in each frame via heat. The heat maps can clearly show he current ehavior
-and ffensive strategy of the aget.
+and ffensive policy of the agent.
 
 ![image](https://github.com/DMU-XMU/Gated-Multi-Attention-in-RL/blob/main/Visualize/heat_maps.png)
 
