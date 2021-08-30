@@ -65,7 +65,7 @@ class Qnetwork():
         self.imageIn =  tf.placeholder(shape=[None,84,84,num_frames],dtype=tf.float32)
         self.args = args
 
-        w_init = tf.contrib.layers.xavier_initializer() #tf.truncated_normal_initializer(0, 2e-2)
+        w_init = tf.truncated_normal_initializer(0, 2e-2) #tf.contrib.layers.xavier_initializer()  The game Jamesbond-v4 uses the xavier_initializer.
         b_init = tf.constant_initializer(0.0)
         with tf.variable_scope(myScope+'conv1'): #img [32,84,84,4]
             w_conv1 = tf.get_variable('w_conv1', [8, 8, num_frames, 32], initializer=w_init)
