@@ -116,7 +116,7 @@ def main():
     parser.add_argument('--selector', default=False, dest='selector', action='store_true', help='enable selector for spatial attention')
     parser.add_argument('--bidir', default=False, dest='bidir', action='store_true', help='enable two layer bidirectional lstm')
     parser.add_argument('--self_att', default=False, action='store_true', help='do not record video')
-    parser.add_argument('--model', default='GMAQN', help='choose the model {GMAQN,ALSTM,RS-DQN,DQN}')
+    parser.add_argument('--model', default='GMAQN', help='choose the model {GMAQN,RS-DQN,Local-DQN,ALSTM,DQN}')
     parser.add_argument('--vis', default=False, action='store_true', help='do visulize')
     ### load model ###
     parser.add_argument('--restore', default=False, action='store_true', help='restore model')
@@ -124,7 +124,7 @@ def main():
     parser.add_argument('--load_network', default=False, action='store_true', help='load_network')
 
     args = parser.parse_args()
-    full_path = './data/'+args.model  +'_'+ args.env + '.txt'  # 也可以创建一个.doc的word文档
+    full_path = './data/'+args.model  +'_'+ args.env + '.txt' 
     file = open(full_path, 'w')
     print(file)
     if not args.restore:
