@@ -152,7 +152,7 @@ class Qnetwork():
                 x2 = x * tf.expand_dims(l2[:,1,:,:],dim=1)
                 x = x1 + x2 #32.64.7.7
                 self.h = tf.transpose(x, [0,2,3,1])  # 32.64.7.7
-            if self.args.model=='Local':
+            if self.args.model=='Local-DQN':
 
                 self.L = 7 * 7
                 self.D = 64
