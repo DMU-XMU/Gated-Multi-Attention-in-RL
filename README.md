@@ -41,7 +41,7 @@ and ffensive policy of the agent.
 
 ![image](https://github.com/DMU-XMU/Gated-Multi-Attention-in-RL/blob/main/Visualize/heat_maps.png)
 
-In the heat map, we also show how GMAQN can be trained to supplement oxygen after the agent is aware that oxygen is insufficient. In more detail, in the first picture, the submarine is destroying the enemy, while in the second, third, and fourth pictures,  the agent observed oxygen is depleting. The fifth and sixth pictures show that the submarine floats to the surface to supplement oxygen. In the seventh picture, the submarine starts to destroy the enemy after replenishing oxygen.
+In the heat maps, we also show how GMAQN can be trained to supplement oxygen after the agent is aware that oxygen is insufficient. In more detail, in the first picture, the submarine is destroying the enemy, while in the second, third, and fourth pictures,  the agent observed oxygen is depleting. The fifth and sixth pictures show that the submarine floats to the surface to supplement oxygen. In the seventh picture, the submarine starts to destroy the enemy after replenishing oxygen.
 
 
 
