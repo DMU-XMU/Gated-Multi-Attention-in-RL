@@ -55,32 +55,29 @@ class attention_conv:
             g = tf.nn.softmax( tf.reshape(self.conv2,[-1,49,1]),dim=1)  # (32, 49, 2)
             g = tf.transpose(tf.reshape(g, [-1, 7,7, 1]),[0,3,1,2]) # (-1,1, 7, 7)
 
-            print(g)
             return g
 
 class Qnetwork():
     def __init__(self, args, h_size, num_frames, num_actions, myScope):
-        self.imageIn =  tf.placeholder(shape=[32,84,84,num_frames],dtype=tf.float32)
-        self.batch_size = 32
+        #if self.args.model == 'GMAQN':
+
+        self.batch_size = tf.placeholder(shape=[], dtype=tf.int32)
+        self.imageIn =  tf.placeholder(shape=[None,84,84,num_frames],dtype=tf.float32)
         self.args = args
 
-        h_init =tf.variance_scaling_initializer()
-        w_init = tf.truncated_normal_initializer(0, 2e-2)
+        w_init = tf.contrib.layers.xavier_initializer() #tf.truncated_normal_initializer(0, 2e-2)
         b_init = tf.constant_initializer(0.0)
-        p_init   = tf.constant_initializer(0.0)
         with tf.variable_scope(myScope+'conv1'): #img [32,84,84,4]
             w_conv1 = tf.get_variable('w_conv1', [8, 8, num_frames, 32], initializer=w_init)
             b_conv1 = tf.get_variable('b_conv1', [32], initializer=b_init)
             conv1 = self.conv2d(self.imageIn, w_conv1, 4)
-            h_conv1 = tf.nn.relu(tf.nn.bias_add(conv1, b_conv1))
-            print(h_conv1.shape) #(?, 20, 20, 32)
+            h_conv1 = tf.nn.relu(tf.nn.bias_add(conv1, b_conv1)) #(?, 20, 20, 32)
 
         with tf.variable_scope(myScope+'conv2'):
             w_conv2 = tf.get_variable('w_conv2', [4, 4, 32, 64], initializer=w_init)
             b_conv2 = tf.get_variable('b_conv2', [64], initializer=b_init)
             conv2 = self.conv2d(h_conv1, w_conv2, 2)
-            h_conv2 = tf.nn.relu(tf.nn.bias_add(conv2, b_conv2))
-            print(h_conv2.shape)#(?, 9, 9, 64)
+            h_conv2 = tf.nn.relu(tf.nn.bias_add(conv2, b_conv2)) #(?, 9, 9, 64)
 
         with tf.variable_scope(myScope+'conv3'):
             w_conv3 = tf.get_variable('w_conv3', [3, 3, 64, 64], initializer=w_init)
@@ -100,16 +97,14 @@ class Qnetwork():
                         att = attention_conv()
                         layers.append(att.attention(self.s))
                 self.s = tf.transpose(self.s, [0, 3, 1, 2])
-                self.att = layers[0] * self.s
-                f = tf.sigmoid(self.att) * self.h                                 # forget [32,64,7,7]
+                f = tf.sigmoid(layers[0] * self.s) * self.h                                 # forget [32,64,7,7]
                 i = tf.tanh(layers[1] * self.s) * tf.sigmoid(layers[2] * self.s)  # input [32,1,7,7]
                 self.h = f + i
-
                 print_param()
             if self.args.model=='ALSTM':
                 self.H = 98
                 lstm_cell_att = tf.nn.rnn_cell.LSTMCell(num_units=self.H)
-                c_att, h_att = lstm_cell_att.zero_state(self.batch_size, tf.float32)
+                c_att, h_att = lstm_cell_att.zero_state(self.batch_size, tf.float32) #32 98
 
                 x = tf.nn.l2_normalize(self.h_conv3, dim=-1, epsilon=1e-12, name='ln')
 
@@ -157,10 +152,42 @@ class Qnetwork():
                 x2 = x * tf.expand_dims(l2[:,1,:,:],dim=1)
                 x = x1 + x2 #32.64.7.7
                 self.h = tf.transpose(x, [0,2,3,1])  # 32.64.7.7
+            if self.args.model=='Local':
+
+                self.L = 7 * 7
+                self.D = 64
+                self.H = 256
+                self.channel = 64
+                self.loc_dim = 5
+                self.img_size = 7
+                self.pth_size = 3
+                self.num_glimpses = 4
+                self.glimpse_output_size = 256
+                self.cell_size = 256
+                self.weight_initializer = tf.contrib.layers.xavier_initializer()
+                self.const_initializer = tf.constant_initializer(0.0)
+                self.alpha_list = []
+
+                # lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.H)
+                # c, h = lstm_cell.zero_state(self.batch_size, tf.float32)
+
+                lstm_cell_att = tf.nn.rnn_cell.LSTMCell(num_units=self.H)
+                c_att, h_att = lstm_cell_att.zero_state(self.batch_size, tf.float32)
+
+                for t in range(self.num_glimpses):
+                    loc = self._attention_layer(h_att, myScope=myScope, reuse=(t != 0))  # t=0，the first Scope
+                    # print(loc.shape)    (?, 5)
+                    # input(2)
+                    # feature and loc input to GlimpseNetwork
+                    context = self.GlimpseNetwork(self.h_conv3, loc, myScope=myScope)  # conv3 (None,  7, 7, 64)
+                    # print(context.shape)  #(n,576)
+                    with tf.variable_scope(myScope + '_lstmCell', reuse=(t != 0)):
+                        _, (c_att, h_att) = lstm_cell_att(inputs=context, state=[c_att, h_att])  # (?, 256) (?, 256)
+                self.convFlat = tf.reshape(h_att, [self.batch_size, 256])
             if self.args.model=='DQN' :
                 self.h = self.h_conv3 #32,7,7,64
-
-        self.convFlat = tf.reshape(self.h,[self.batch_size, 49*64])
+        if self.args.model != 'Local':
+            self.convFlat = tf.reshape(self.h,[self.batch_size, 49*64])
 
         self.rnn = tf.contrib.layers.fully_connected(self.convFlat, h_size, activation_fn=tf.nn.relu)
 
@@ -182,6 +209,66 @@ class Qnetwork():
 
     def conv2d(self,x, W, stride):
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding="VALID")
+
+    def RetinaSensor(self, normLoc):
+        A = B = self.img_size  # 7
+        N = self.pth_size  # 3
+        gx_, gy_, log_sigma2, log_delta, log_gamma = tf.split(normLoc, 5, 1)
+        gx = (A + 1) / 2 * (gx_ + 1)
+        gy = (B + 1) / 2 * (gy_ + 1)
+        sigma2 = tf.exp(log_sigma2)
+        # sigma2 -= 0.9
+        delta = (max(A, B) - 1) / (N - 1) * tf.exp(log_delta)  # batch x N    delta:步长
+
+        return filterbank(gx, gy, sigma2, delta, N) + (tf.exp(log_gamma),)
+
+    def GlimpseNetwork(self, feature_map, locs, myScope=''):
+        B = A = self.img_size  # 7
+        N = self.pth_size  # 3
+        Fx, Fy, gamma = self.RetinaSensor(locs)
+
+        Fxt = tf.transpose(Fx, perm=[0, 2, 1])  # [?, 7, 3]
+
+        feature_map = tf.transpose(feature_map, perm=[0, 3, 1, 2])  # [?, 64, 7, 7]
+        img = tf.reshape(feature_map, [-1, 64 * B, A])
+
+        img_Fxt = tf.matmul(img, Fxt)  # [?, 64*7, 3]                  [?, 7, 3, 64]
+        img_Fxt = tf.reshape(tf.transpose(tf.reshape(img_Fxt, [-1, 64, 7, 3]), [0, 2, 3, 1]), [-1, 7, 3 * 64])
+        glimpse = tf.matmul(Fy, img_Fxt)
+
+        glimpse = tf.reshape(glimpse, [-1, N * N * 64])
+        # print(gamma.shape)  (?, 9)
+
+        x = glimpse * tf.reshape(gamma, [-1, 1])  # batch x (read_n*read_n)
+        # print(x.shape)   # (?, 576)
+        # print(glimpse.shape)  # (?, 576)
+        return glimpse
+    def _attention_layer(self, h, myScope, reuse=False):
+        with tf.variable_scope(myScope + '_attention_layer', reuse=reuse):
+            w = tf.get_variable('w', [self.H, self.loc_dim], initializer=self.weight_initializer)
+            b = tf.get_variable('b', [self.loc_dim], initializer=self.const_initializer)
+
+            loc = tf.matmul(h, w) + b  # (N,5)
+            return loc
+eps = 1e-8
+def filterbank(gx, gy, sigma2,delta, N):
+    grid_i = tf.reshape(tf.cast(tf.range(N), tf.float32), [1, -1])
+    #gx += 12
+    #gy += 12
+    A = B = 7
+    mu_x = gx + (grid_i - N / 2 - 0.5) * delta # eq 19
+    mu_y = gy + (grid_i - N / 2 - 0.5) * delta # eq 20
+    a = tf.reshape(tf.cast(tf.range(A), tf.float32), [1, 1, -1])
+    b = tf.reshape(tf.cast(tf.range(B), tf.float32), [1, 1, -1])
+    mu_x = tf.reshape(mu_x, [-1, N, 1])
+    mu_y = tf.reshape(mu_y, [-1, N, 1])
+    sigma2 = tf.reshape(sigma2, [-1, 1, 1])
+    Fx = tf.exp(-tf.square(a - mu_x) / (2*sigma2))
+    Fy = tf.exp(-tf.square(b - mu_y) / (2*sigma2)) # batch x N x B
+    # normalize, sum over A and B dims
+    Fx = Fx/tf.maximum(tf.reduce_sum(Fx,2,keep_dims=True),eps)
+    Fy = Fy/tf.maximum(tf.reduce_sum(Fy,2,keep_dims=True),eps)
+    return Fx, Fy
 def save_scalar(step, name, value, writer):
     """Save a scalar value to tensorboard.
       Parameters
@@ -317,12 +404,15 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        state = np.zeros([32, 84, 84, self.num_frames])
-        state[0, :, :, :] = s
-
-        ############ do a step ############
-        Qout = self.sess.run(self.q_network.Qout,feed_dict={self.q_network.imageIn: state})
-        Qout = np.expand_dims(Qout[0], axis=0)
+        if self.args.model=='GMAQN':
+            state = np.zeros([32, 84, 84, self.num_frames])
+            state[0, :, :, :] = s
+            ############ do a step ############
+            Qout = self.sess.run(self.q_network.Qout,feed_dict={self.q_network.imageIn: state,self.q_network.batch_size:32})
+            Qout = np.expand_dims(Qout[0], axis=0)
+        else:
+            state = s[None, :, :, :]
+            Qout = self.sess.run(self.q_network.Qout,feed_dict={self.q_network.imageIn: state, self.q_network.batch_size: 1})
         return Qout
 
     def select_action(self, t,rgbstate,state, is_training = True, **kwargs):
@@ -357,7 +447,7 @@ class DQNAgent:
             # return GreedyEpsilonPolicy(0.05).select_action(q_values)
             return GreedyPolicy().select_action(q_values)
 
-    def update_policy(self,t, current_sample):
+    def update_policy(self, current_sample):
         """Update your policy.
 
         Behavior may differ based on what stage of training your
@@ -400,25 +490,23 @@ class DQNAgent:
         else:
             # next_qa_value = self.target_network.predict_on_batch(next_states)
             next_qa_value = self.sess.run(self.target_network.Qout,
-                    feed_dict={self.target_network.imageIn: next_states})
-
+                                          feed_dict={self.target_network.imageIn: next_states,
+                                                     self.target_network.batch_size: batch_size})
         if self.enable_ddqn:
             # qa_value = self.q_network.predict_on_batch(next_states)
             qa_value = self.sess.run(self.q_network.Qout,
-                    feed_dict={self.q_network.imageIn: next_states})
-            max_actions = np.argmax(qa_value, axis = 1)
+                                     feed_dict={self.q_network.imageIn: next_states,
+                                                self.q_network.batch_size: batch_size})
+            max_actions = np.argmax(qa_value, axis=1)
             next_qa_value = next_qa_value[range(batch_size), max_actions]
         else:
-            next_qa_value = np.max(next_qa_value, axis = 1)
+            next_qa_value = np.max(next_qa_value, axis=1)
         # print rewards.shape, mask.shape, next_qa_value.shape, batch_size
         target = rewards + self.gamma * mask * next_qa_value
 
         loss, _, rnn = self.sess.run([self.q_network.loss, self.q_network.updateModel, self.q_network.rnn],
-                    feed_dict={self.q_network.imageIn: states,
-                    self.q_network.actions: actions, self.q_network.targetQ: target})
-
-
-
+                                     feed_dict={self.q_network.imageIn: states, self.q_network.batch_size: batch_size,
+                                                self.q_network.actions: actions, self.q_network.targetQ: target})
         return loss, np.mean(target)
 
     def fit(self, env, num_iterations, max_episode_length=None):
@@ -446,7 +534,7 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        self.is_training = False
+        self.is_training = True
         print("Training starts.")
         # self.save_model(0)
         eval_count = 0
@@ -476,7 +564,9 @@ class DQNAgent:
             action = self.select_action(t,state, action_state, self.is_training, policy_type=policy_type)
             processed_state = self.atari_processor.process_state_for_memory(state)
             state, reward, done, info = env.step(action)
-            #env.render()
+            if self.args.noise != 'none':
+                state = self.add_noise(state,env)  # add noise
+
             processed_next_state = self.atari_processor.process_state_for_network(state)
             action_next_state = np.dstack((action_state, processed_next_state))
             action_next_state = action_next_state[:, :, 1:]
@@ -528,7 +618,7 @@ class DQNAgent:
                     print(
                         '\nTrain:ep %d, avg_ep_r: %.4f, min_ep_r: %.4f, max_ep_r: %.4f, avg_ls: %.6f, avg_q: %3.6f,# game: %d' \
                         % ( idx_episode,avg_ep_reward,  min_ep_reward,max_ep_reward,avg_ep_loss, avg_ep_q,  num_game))
-                    with open( './data/'+self.args.model +'_'+ self.args.env + '.txt', 'a') as file:
+                    with open( './data/'+self.args.model +'_' + self.args.noise + '_'+ self.args.env + '.txt', 'a') as file:
                         file.write(str(avg_ep_reward) + '\n')
                     num_game = 0
                     self.total_loss = 0.
@@ -537,7 +627,7 @@ class DQNAgent:
                     ep_reward = 0.
                     ep_rewards = []
                 if t % self.train_freq == 0:
-                    loss, target_value = self.update_policy(t,current_sample)
+                    loss, target_value = self.update_policy(current_sample)
                     episode_loss += loss
                     episode_target_value += target_value
                 # update freq is based on train_freq
@@ -550,7 +640,22 @@ class DQNAgent:
                     pass
                     #episode_reward_mean, episode_reward_std, eval_count = self.evaluate(env, 10, eval_count, max_episode_length, True)
             
-
+    def add_noise(self,state,env):
+        import cv2
+        VP_W  = 210
+        VP_H = 160
+        S = {'noise1':50,'noise2':80, 'noise3':128}
+        rand_noise = np.random.randint(0, S[self.args.noise], VP_W * VP_H * 3)
+        rand_noise = rand_noise.reshape([ VP_W, VP_H, 3])  #210 160 3
+        state = np.uint8(rand_noise + state)
+        # env.render()
+        # im  = np.dstack((
+        #     state[:, :, 2],
+        #     state[:, :, 1],
+        #     state[:, :, 0],
+        # ))
+        # cv2.imshow("Image", im)
+        return state
     def save_model(self, idx_episode):
         safe_path = self.output_path + "/qnet" + str(idx_episode) + ".cptk"
         self.saver.save(self.sess, safe_path)
