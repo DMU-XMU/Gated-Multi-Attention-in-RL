@@ -43,6 +43,20 @@ and ffensive policy of the agent.
 
 In the heat maps, we also show how GMAQN can be trained to supplement oxygen after the agent is aware that oxygen is insufficient. In more detail, in the first picture, the submarine is destroying the enemy, while in the second, third, and fourth pictures,  the agent observed oxygen is depleting. The fifth and sixth pictures show that the submarine floats to the surface to supplement oxygen. In the seventh picture, the submarine starts to destroy the enemy after replenishing oxygen.
 
+```bibtex
+@article{LIANG2021107535,
+title = {Gated multi-attention representation in reinforcement learning},
+journal = {Knowledge-Based Systems},
+volume = {233},
+pages = {107535},
+year = {2021},
+issn = {0950-7051},
+doi = {https://doi.org/10.1016/j.knosys.2021.107535},
+url = {https://www.sciencedirect.com/science/article/pii/S0950705121007978},
+author = {Dayang Liang and Qihang Chen and Yunlong Liu},
+}
+```
+
 
 
 
